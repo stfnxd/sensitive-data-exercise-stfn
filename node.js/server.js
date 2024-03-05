@@ -1,5 +1,6 @@
 import express from 'express';
 import { urlencoded } from 'body-parser';
+import bcrypt from 'bcryptjs';
 
 const app = express();
 const port = 3000;
@@ -17,18 +18,24 @@ let users = {
 app.post('/create-user', (req, res) => {
     const { username, password } = req.body;
     
-    // Basic validation
-    if (!username || !password) {
-        return res.status(400).send("Username and password are required.");
-    }
+    // Hash password
+    bcrypt.hash(password, 10, (err, hashedPassword) => {
+        if (err) {
+            return res.status(500).send("Error hashing password.");
+        }
 
-    // Check if user already exists
-    if (users.hasOwnProperty(username)) {
-        return res.status(409).send("User already exists.");
-    }
+        // Basic validation
+        if (!username || !hashedPassword) {
+            return res.status(400).send("Username and hashed password are required.");
+        }
+
+        // Check if user already exists
+        if (users.hasOwnProperty(username)) {
+            return res.status(409).send("User already exists.");
+        }
 
     // Store the user
-    users[username] = { password: password }; // Store hashed password in a real scenario
+    users[username] = { password: hashedPassword }; // Store hashed password in a real scenario
 
     res.send("User created successfully.");
 });
@@ -37,13 +44,18 @@ app.post('/login', (req, res) => {
     const { username, password } = req.body;
     
     // Check if user exists and password matches
-    if (users.hasOwnProperty(username) && users[username].password === password) {
-        res.send("Login successful!");
+    if (users.hasOwnProperty(username)){
+        bcrypt.compare(password, users[username].password, (err, result) => {
+            if (err || !result) {
+                return res.status(401).send("Login failed: Incorrect username or password.");
+            }
+            res.send("Login successful!");
+        });
     } else {
-        res.send("Login failed: Incorrect username or password.");
+        res.status(401).send("Login failed: User does not exist.");
     }
 });
 
 app.listen(port, () => {
     console.log(`Server running at http://localhost:${port}`);
-});
+})});

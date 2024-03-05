@@ -1,27 +1,43 @@
 <?php
-// Assume users are stored in a JSON file for simplicity (users.json)
-$usersFile = 'users.json';
-
-// Check if the file exists, if not create one
-if (!file_exists($usersFile)) {
-    file_put_contents($usersFile, json_encode([]));
-}
+include 'db_connection.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'];
-    $password = $_POST['password']; // Use password hashing in real applications
+    $password = $_POST['password'];
+    $email = $_POST['email'];
+    $phone = $_POST['phone'];
 
-    // Load existing users
-    $users = json_decode(file_get_contents($usersFile), true);
+    // Hash adgangskode
+    $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
 
-    // Check if user exists
-    if (isset($users[$username])) {
-        echo "User already exists.";
+    // encrypt key for  DATA
+    $emailEncryptionKey = generateEncryptionKey();
+    $phoneEncryptionKey = generateEncryptionKey();
+
+    // encryption for DATA
+    $encryptedEmail = encryptData($email, $emailEncryptionKey);
+    $encryptedPhone = encryptData($phone, $phoneEncryptionKey);
+
+    //SQL-forespørgslen med parameterbinding
+    $sql = "INSERT INTO users (username, password, encrypted_email, encrypted_phone, email_encryption_key, phone_encryption_key) VALUES (?, ?, ?, ?, ?, ?)";
+
+    // SQL Udsagn
+    if ($stmt = $conn->prepare($sql)) {
+        // Binde parametrene og angive deres typer
+        $stmt->bind_param("ssssss", $username, $hashedPassword, $encryptedEmail, $encryptedPhone, $emailEncryptionKey, $phoneEncryptionKey);
+        
+        // Udfør QUERY
+        if ($stmt->execute()) {
+            echo "User created successfully.";
+        } else {
+            echo "Error executing query: " . $stmt->error;
+        }
+
+        $stmt->close();
     } else {
-        // Add user
-        $users[$username] = $password; // Hash password before saving
-        file_put_contents($usersFile, json_encode($users));
-        echo "User created successfully.";
+        echo "Error preparing query: " . $conn->error;
     }
 }
-?>
+
+$conn->close();
+

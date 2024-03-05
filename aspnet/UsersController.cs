@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Linq;
+using BCrypt.Net;
 
 [ApiController]
 [Route("[controller]")]
@@ -13,10 +14,13 @@ public class UsersController : ControllerBase
             return Conflict("User already exists.");
         }
 
-        // In a real application, hash the password
-        UserData.Users.Add(user.Username, user.Password);
-        return Ok("User registered successfully.");
-    }
+            // In a real application, hash the password
+            string hashedPassword = BCrypt.Net.BCrypt.HashPassword(user.Password);
+
+            // Store hashed password
+            UserData.Users.Add(user.Username, hashedPassword);
+            return Ok("User registered successfully.");
+     }
 
     [HttpPost("login")]
     public IActionResult Login(User user)
@@ -24,7 +28,7 @@ public class UsersController : ControllerBase
         if (UserData.Users.TryGetValue(user.Username, out var storedPassword))
         {
             // In a real application, verify the hashed password
-            if (storedPassword == user.Password)
+            if (BCrypt.Net.BCrypt.Verify(user.Password, storedPassword))
             {
                 return Ok("Login successful.");
             }

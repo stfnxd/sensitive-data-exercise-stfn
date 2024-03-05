@@ -1,18 +1,28 @@
 <?php
-$usersFile = 'users.json';
+include 'db_connection.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $username = $_POST['username'];
     $password = $_POST['password'];
 
-    // Load users
-    $users = json_decode(file_get_contents($usersFile), true);
+    // Find password for brugeren fra DB
+    $sql = "SELECT password FROM users WHERE username = '$username'";
+    $result = $conn->query($sql);
 
-    // Verify user and password
-    if (isset($users[$username]) && $users[$username] === $password) { // Use password_verify for hashed passwords
-        echo "Login successful!";
+    if ($result->num_rows > 0) {
+        $row = $result->fetch_assoc();
+        $hashedPassword = $row['password'];
+
+        // Verify password
+        if (password_verify($password, $hashedPassword)) {
+            echo "Login successful!";
+        } else {
+            echo "Login failed: Incorrect username or password.";
+        }
     } else {
-        echo "Login failed: Incorrect username or password.";
+        echo "Login failed: User not found.";
     }
 }
-?>
+
+$conn->close();
+
